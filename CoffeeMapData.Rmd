@@ -1,0 +1,88 @@
+---
+output: html_document
+date: "2024-06-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo = FALSE}
+library(rvest)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+
+get_popular = function(shop_link){
+  shop_page = read_html(shop_link)
+  popular = shop_page %>%
+    html_nodes(".y-css-kw85nd .y-css-12ly5yx") %>%
+    html_text() %>%
+    paste(collapse = ", ")
+  return(popular)
+}
+
+get_stars = function(shop_link){
+  shop_page = read_html(shop_link)
+  stars = shop_page %>%
+    html_nodes(".arrange-unit-fill__09f24__CUubG.y-css-lbeyaq .y-css-kw85nd") %>%
+    html_text() %>%
+    paste(collapse = ", ")
+  return(stars)
+}
+
+shops <- tibble(
+  name = character(),
+  link = character(),
+  distance = character(),
+  tags = character(),
+  stars = character(),
+  num_reviews = character()
+)
+
+for (page_result in seq(from = 0, to = 40, by = 10)) {
+  
+  link = paste0("https://www.yelp.com/search?find_desc=Coffee&find_loc=110+Inner+Campus+Drive%2C+Austin%2C+TX+78705&start=", page_result)
+  
+  page = read_html(link)
+  
+  names = page %>%
+    html_nodes(".y-css-hcgwj4 .y-css-12ly5yx") %>%
+    html_text()
+
+  shop_links = page %>%
+    html_nodes(".y-css-hcgwj4 .y-css-12ly5yx") %>%
+    html_attr("href") %>%
+    paste("https://www.yelp.com", ., sep = "")
+  
+  distance = page %>%
+    html_nodes(".y-css-8s6ha1+ .y-css-wfbtsu .raw__09f24__T4Ezm") %>%
+    html_text()
+  
+  num_reviews = page %>%
+    html_nodes("#main-content .y-css-ohs7lg .y-css-wfbtsu") %>%
+    html_text()
+  
+  tags = sapply(shop_links, FUN = get_popular)
+  star_count = sapply(shop_links, FUN = get_stars)
+  
+  temp_tibble <- tibble(
+    name = names,
+    link = shop_links,
+    distance = distance,
+    tags = tags,
+    stars = star_count,
+    num_reviews = num_reviews
+  )
+  shops <- bind_rows(shops, temp_tibble)
+}
+print(shops)
+
+
+```
+
+```{r}
+write.csv(shops, "CoffeeShopData.csv")
+```
